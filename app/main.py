@@ -1,11 +1,13 @@
 from pathlib import Path
 from uuid import uuid4
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
+from time import sleep
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, text
 from .config import settings
 from .database import Base, engine, get_db
 from .models import (
@@ -18,9 +20,50 @@ from .schemas import (
 )
 from .security import verify_password, hash_password, create_access_token, current_user, require_roles
 
-app = FastAPI(title=settings.app_name, docs_url="/docs" if settings.environment == "development" else None)
-Base.metadata.create_all(bind=engine)  # Development only; production must use reviewed Alembic migrations.
-Path(settings.private_upload_dir).mkdir(parents=True, exist_ok=True)
+def initialise_database() -> None:
+    """Wait for Railway PostgreSQL, then create any missing application tables.
+
+    SQLAlchemy create_all is idempotent for existing tables. It does not alter
+    existing columns; future schema changes should use reviewed Alembic migrations.
+    """
+    if settings.environment.lower() == "production" and engine.dialect.name == "sqlite":
+        raise RuntimeError(
+            "Production deployment requires Railway PostgreSQL. Set DATABASE_URL "
+            "to the Railway PostgreSQL service's connection URL."
+        )
+
+    attempts = 12
+    for attempt in range(1, attempts + 1):
+        try:
+            with engine.begin() as connection:
+                connection.execute(text("SELECT 1"))
+                # All model classes are imported above before metadata is created.
+                Base.metadata.create_all(bind=connection)
+            print("White Oak database connection ready; missing tables created if needed.")
+            return
+        except Exception as exc:
+            if attempt == attempts:
+                raise RuntimeError(
+                    f"Database initialisation failed after {attempts} attempts. "
+                    "Check Railway PostgreSQL is running and DATABASE_URL is correctly linked."
+                ) from exc
+            wait_seconds = min(attempt * 2, 10)
+            print(f"Database not ready (attempt {attempt}/{attempts}); retrying in {wait_seconds}s.")
+            sleep(wait_seconds)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Path(settings.private_upload_dir).mkdir(parents=True, exist_ok=True)
+    initialise_database()
+    yield
+
+
+app = FastAPI(
+    title=settings.app_name,
+    docs_url="/docs" if settings.environment == "development" else None,
+    lifespan=lifespan,
+)
 app.mount("/web", StaticFiles(directory="web"), name="web")
 
 STAFF_ROLES = (Role.administrator, Role.staff, Role.safeguarding_lead)
@@ -58,7 +101,13 @@ def home():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "environment": settings.environment}
+    # Railway uses this endpoint to confirm that both the app and database are ready.
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database is not ready.")
+    return {"status": "ok", "database": "connected", "environment": settings.environment}
 
 @app.post("/api/auth/login")
 def login(data: LoginInput, db: Session = Depends(get_db)):

@@ -96,7 +96,7 @@ This project includes a Railway configuration (`railway.toml`). Deploy the **con
 
 Railway is being used here as an initial hosting platform, not as a declaration of UK GDPR compliance. Choose and verify the data region and contractual terms before any real personal data is entered. The app currently stores PDFs on a mounted Railway volume; this is not a substitute for a reviewed private object-storage design, malware scanning, key management, retention controls and tested backups. Back up the database and volume independently and test restoration.
 
-The current application still creates database tables at startup and uses a development-style case-number allocator. Before production use, replace startup table creation with reviewed Alembic migrations, implement a concurrency-safe case-number allocator, complete security testing and the approved safeguarding/access policy, and replace the current browser token storage with an approved production session design. Email notifications are not yet integrated. **Do not upload real children's records, court documents or safeguarding information to this milestone.**
+The application creates missing database tables automatically at startup; this is a convenience for the initial Railway deployment, not a substitute for schema migrations. Before production use, introduce reviewed Alembic migrations for future schema changes, implement a concurrency-safe case-number allocator, complete security testing and the approved safeguarding/access policy, and replace the current browser token storage with an approved production session design. Email notifications are not yet integrated. **Do not upload real children's records, court documents or safeguarding information to this milestone.**
 
 ## Access behaviour
 
@@ -109,7 +109,20 @@ The current application still creates database tables at startup and uses a deve
 
 ## Technical notes
 
-- Tables are currently created at application startup for development. Replace this with reviewed Alembic migrations before production.
+- Missing tables are created at application startup. Use reviewed Alembic migrations for subsequent schema changes.
 - Case numbers are generated using a development-only count-based allocator. Replace with a database sequence or transaction-safe allocator before production.
 - Local file storage is for development only. A production deployment needs private object storage in an approved UK region, restricted service access, encryption/key management, malware scanning, backups and tested restore procedures.
 - The UI is a working milestone interface, not a final approved workflow. Email notifications and logs are not connected to an email provider yet.
+
+## Railway database auto-initialisation
+
+The application now initialises its database automatically during startup:
+
+1. Add a **PostgreSQL** service to the Railway project.
+2. In the web service Variables, add `DATABASE_URL` as a Railway reference to the PostgreSQL service connection URL (commonly `${{Postgres.DATABASE_URL}}`; use your actual PostgreSQL service name).
+3. Set `ENVIRONMENT=production`.
+4. Deploy. The app waits for PostgreSQL to become available, tests the connection, and creates any missing tables from the SQLAlchemy models. No manual SQL or `create_all` command is needed.
+
+The `/api/health` endpoint returns HTTP 200 only when the database connection works. If PostgreSQL is not connected, startup fails with a clear error after retrying. Production mode deliberately refuses to start with the default SQLite database.
+
+**Important:** automatic table creation creates missing tables; it does not safely modify existing tables when the model changes. Use reviewed Alembic migrations for future schema changes. Keep one application instance during first-time initialisation, and back up the PostgreSQL database before upgrades. Railway provisions the PostgreSQL service; the app only creates its own tables inside that database.
