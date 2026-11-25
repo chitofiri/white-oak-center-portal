@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#24483d"><title>White Oak Center | Secure Portal</title>
+  <link rel="stylesheet" href="/web/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="White Oak Center home"><span class="brand-mark">W</span><span><strong>WHITE OAK</strong><small>CENTER</small></span></a>
+    <div class="top-actions"><span class="secure-label"><span class="dot"></span> Secure portal</span><button id="logout" class="logout hidden" type="button">Sign out</button></div>
+  </header>
+  <main id="login-view">
+    <section class="intro"><p class="eyebrow">CHILD-CENTRED · SAFEGUARDING-LED</p><h1>A thoughtful space for families.</h1>
+      <p class="lead">A secure place for authorized families and professionals to manage referrals, contact arrangements and documents with White Oak Center.</p>
+      <div class="principles"><span>Confidential</span><span>Child-centred</span><span>Professionally supported</span></div></section>
+    <section class="login-card" aria-labelledby="login-title"><div class="card-icon">↗</div><h2 id="login-title">Portal sign in</h2><p class="muted">Use the account details provided by White Oak Center.</p>
+      <form id="login-form"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="username" required>
+        <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Sign in securely</button><p id="message" class="message" role="status"></p></form>
+      <p class="help">Need help accessing your account? Please contact White Oak Center using the contact details provided to you.</p></section>
+  </main>
+  <main id="dashboard-view" class="dashboard hidden"><aside class="sidebar"><p class="eyebrow">YOUR PORTAL</p><h2 id="welcome-name">Welcome</h2><p id="role-label" class="muted"></p><nav id="side-nav"></nav><p class="side-note">Please use this portal only for information you are authorized to access.</p></aside>
+    <section class="workspace"><div class="page-heading"><div><p class="eyebrow">WHITE OAK CENTER</p><h1 id="page-title">Your dashboard</h1><p id="page-subtitle" class="muted">Your secure workspace.</p></div></div><div id="dashboard-content"></div></section>
+  </main>
+  <footer><p><strong>White Oak Center</strong> · Supervised contact for children and families</p><p class="footer-note">Development build only. Do not enter real client, child, court or safeguarding information.</p></footer>
+  <script src="/web/app.js"></script>
+</body></html>
